@@ -1,0 +1,30 @@
+{
+  "name": "cmrtc-college-bus-tracking-system",
+  "version": "1.0.0",
+  "description": "Smart College Bus Tracking System for CMR Technical Campus, Kandlakoya, Hyderabad",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "cmrtc",
+    "college-bus-tracker",
+    "hyderabad",
+    "express",
+    "mysql",
+    "leaflet",
+    "smart-transit"
+  ],
+  "author": "CMR Technical Campus Students",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

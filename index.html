@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMR Technical Campus (Kandlakoya, Hyderabad) | SmartTransit AI</title>
+    
+    <meta name="description" content="Advanced College Bus Tracking System specifically designed for CMR Technical Campus, Kandlakoya, Hyderabad, Telangana. Featuring automatic departure calculations for 9:10 AM arrival (College starts 9:20 AM) and 4:00 PM evening return.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Leaflet GIS Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#0b132b',
+                        },
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo & Address -->
+            <div class="flex items-center gap-3">
+                <button id="mobileMenuBtn" class="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <a href="#" data-nav="home" class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+                        <i class="fa-solid fa-graduation-cap text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-extrabold text-slate-900 tracking-tight text-lg">CMRTC SmartTransit</span>
+                            <span class="text-xs bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded uppercase">AI</span>
+                        </div>
+                        <span class="hidden sm:block text-[10px] text-slate-500 tracking-wider font-semibold">CMR Technical Campus, Kandlakoya (V), Medchal Road, Hyderabad – 501401, Telangana</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Header Quick Actions, Shift Switcher & Persona -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Shift Toggle (Morning to Campus vs Evening Return @ 4:00 PM) -->
+                <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                    <button id="shiftBtnMorning" onclick="window.app.switchShift('morning')" class="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                        ☀️ Morning (9:10 AM Target)
+                    </button>
+                    <button id="shiftBtnEvening" onclick="window.app.switchShift('evening')" class="px-3 py-1 bg-white text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition">
+                        🌙 Evening (Departs 4:00 PM)
+                    </button>
+                </div>
+
+                <!-- Demo Persona Quick Switcher -->
+                <div class="hidden md:flex items-center gap-2 bg-slate-100/90 p-1 rounded-xl border border-slate-200">
+                    <select id="personaRoleSelect" onchange="window.app.switchRole(this.value)" class="bg-white text-xs font-bold text-slate-800 rounded-lg py-1 px-2.5 border-0 shadow-sm focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                        <option value="student">🎓 Student (Sai Teja)</option>
+                        <option value="parent">👨‍👩‍👦 Parent (K. Mohan Reddy)</option>
+                        <option value="driver">🧑‍✈️ Driver (Captain Srinivas)</option>
+                        <option value="admin">📊 Admin (Transport Dean)</option>
+                    </select>
+                </div>
+
+                <!-- Emergency SOS Trigger Button -->
+                <button onclick="window.transitSimulator.triggerEmergencySOS()" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500 animate-pulse"></i>
+                    <span class="hidden sm:inline">SOS</span>
+                </button>
+
+                <!-- Notifications Bell -->
+                <button onclick="window.app.navigateTo('notifications')" class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition" title="Smart Notifications">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span id="unreadNotifBadge" class="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center">3</span>
+                </button>
+
+                <!-- Current User Avatar -->
+                <div onclick="window.app.navigateTo('auth')" class="flex items-center gap-2.5 pl-1 cursor-pointer">
+                    <img id="currentUserAvatar" src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80" alt="Avatar" class="w-8 h-8 rounded-full object-cover border-2 border-blue-500 shadow-sm">
+                    <div class="hidden lg:block text-left">
+                        <div class="flex items-center gap-1.5">
+                            <span id="currentUserName" class="text-xs font-bold text-slate-900 leading-tight">Sai Teja Reddy</span>
+                            <span id="topRoleBadge" class="text-[10px] text-blue-600 font-semibold">Student</span>
+                        </div>
+                        <span id="currentUserRole" class="text-[10px] text-slate-500 block truncate max-w-[130px]">B.Tech CSE III Year</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
+
+        <!-- Left Navigation Sidebar -->
+        <aside id="appSidebar" class="hidden lg:block w-64 shrink-0 transition-all duration-300">
+            <div class="sticky top-24 glass-panel rounded-2xl p-4 border border-slate-200 shadow-sm">
+                
+                <div class="space-y-6" id="sidebarNav">
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3">Transit Operations</span>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" data-nav="home" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-blue-600 bg-blue-50 transition">
+                                <i class="fa-solid fa-house w-4"></i> Home &amp; Fleet
+                            </a>
+                            <a href="#" data-nav="live-tracking" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-map-location-dot w-4"></i> Live Bus Tracking
+                            </a>
+                            <a href="#" data-nav="routes-stops" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-route w-4"></i> Routes &amp; Stops (10)
+                            </a>
+                            <a href="#" data-nav="bus-details" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-bus-simple w-4"></i> Bus Details &amp; Health
+                            </a>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3">Portals</span>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" data-nav="student-dashboard" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-graduation-cap w-4"></i> Student Dashboard
+                            </a>
+                            <a href="#" data-nav="parent-dashboard" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-people-roof w-4"></i> Parent Tracking
+                            </a>
+                            <a href="#" data-nav="driver-dashboard" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-id-badge w-4"></i> Driver Cockpit HUD
+                            </a>
+                            <a href="#" data-nav="admin-dashboard" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-chart-line w-4"></i> Admin &amp; Analytics
+                            </a>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3">Smart Features</span>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" data-nav="digital-pass" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-qrcode w-4"></i> Digital Bus Pass
+                            </a>
+                            <a href="#" data-nav="qr-attendance" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-barcode w-4"></i> QR Attendance Scanner
+                            </a>
+                            <a href="#" data-nav="emergency-safety" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-shield-halved w-4"></i> Emergency &amp; Safety
+                            </a>
+                            <a href="#" data-nav="notifications" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-bell w-4"></i> Notifications Center
+                            </a>
+                            <a href="#" data-nav="trip-history" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-clock-rotate-left w-4"></i> Trip History
+                            </a>
+                            <a href="#" data-nav="feedback" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-100 transition">
+                                <i class="fa-solid fa-comment-dots w-4"></i> Feedback &amp; Lost-Found
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Destination Callout Card -->
+                <div class="mt-6 p-3.5 bg-gradient-to-br from-blue-900 via-slate-900 to-indigo-950 rounded-xl text-white text-xs border border-blue-800/60 shadow">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="font-extrabold flex items-center gap-1.5 text-blue-300">
+                            <i class="fa-solid fa-building-columns text-emerald-400"></i> Final Destination
+                        </span>
+                        <span class="text-[9px] bg-emerald-500 text-white font-bold px-1.5 py-0.2 rounded">ORR EXIT 6</span>
+                    </div>
+                    <p class="font-bold text-slate-100 leading-snug">CMR Technical Campus</p>
+                    <p class="text-[11px] text-slate-300 mt-0.5 leading-tight">Kandlakoya (V), Medchal Road, Hyderabad – 501401, Telangana</p>
+                    <div class="mt-2 pt-2 border-t border-white/10 text-[10px] text-blue-200">
+                        <div>College Starts: <b>9:20 AM</b></div>
+                        <div>Target Arrival: <b>9:10 AM</b></div>
+                        <div>Return Departure: <b>4:00 PM</b></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dynamic Content Area -->
+        <main class="flex-1 min-w-0">
+
+            <!-- =========================================================================
+                 PAGE 1: HOME & LIVE FLEET OVERVIEW
+                 ========================================================================= -->
+            <section id="view-home" class="app-view space-y-6">
+                <!-- Hero Presentation Banner specifically branded for CMR Technical Campus -->
+                <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white p-8 sm:p-10 shadow-xl border border-blue-800">
+                    <div class="relative z-10 max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold mb-3">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            CMR Technical Campus, Kandlakoya (V), Medchal Road, Hyderabad – 501401, Telangana
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                            Smart College Bus Tracking & Transit System
+                        </h1>
+                        <p class="mt-2 text-xs sm:text-sm text-blue-200 font-medium">
+                            <i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> Main Destination: <b>CMR Technical Campus, Kandlakoya (Near ORR Exit 6)</b>
+                        </p>
+                        <p class="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            College starts at <b>9:20 AM</b> with target campus arrival at <b>9:10 AM</b> (10-minute safety buffer). Evening return fleet departs at <b>4:00 PM</b> sharp.
+                        </p>
+                        <div class="mt-6 flex flex-wrap gap-3">
+                            <button onclick="window.app.navigateTo('live-tracking')" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-blue-500/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-location-arrow"></i> Live Bus Tracking Map
+                            </button>
+                            <button onclick="window.app.navigateTo('student-dashboard')" class="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-xs sm:text-sm backdrop-blur border border-white/20 transition flex items-center gap-2">
+                                <i class="fa-solid fa-graduation-cap"></i> Student Dashboard
+                            </button>
+                        </div>
+                    </div>
+                    <div class="absolute -right-12 -bottom-12 opacity-10 pointer-events-none">
+                        <i class="fa-solid fa-bus text-[280px]"></i>
+                    </div>
+                </div>
+
+                <!-- 4-Tier Journey Duration Legend as Requested -->
+                <div class="glass-panel p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <span class="font-extrabold text-slate-900 flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group text-blue-600"></i> Route Duration Tiers:
+                    </span>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800">🟢 Under 60 min – Short Route</span>
+                        <span class="px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800">🟡 60–90 min – Medium Route</span>
+                        <span class="px-2.5 py-1 rounded-full font-bold bg-orange-100 text-orange-800">🟠 90–120 min – Long Route</span>
+                        <span class="px-2.5 py-1 rounded-full font-bold bg-red-100 text-red-800">🔴 Over 120 min – Review Route</span>
+                    </div>
+                </div>
+
+                <!-- Live Campus Fleet Grid -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">CMRTC Hyderabad Bus Routes</h2>
+                            <p class="text-xs text-slate-500">Every route arriving at CMR Technical Campus, Kandlakoya (Near ORR Exit 6)</p>
+                        </div>
+                        <button onclick="window.app.navigateTo('live-tracking')" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            View Live Map <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div id="homeFleetList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 2: STUDENT DASHBOARD
+                 (Exact matching user text for Morning Dashboard & Evening Dashboard)
+                 ========================================================================= -->
+            <section id="view-student-dashboard" class="app-view hidden space-y-6">
+
+                <!-- 1. MORNING DASHBOARD (Shown during morning shift or before 4:00 PM) -->
+                <div id="studentMorningCard" class="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold mb-2">
+                                <span>☀️ Morning Commute Mode</span> • Target Arrival: 9:10 AM
+                            </div>
+                            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Good Morning, Student 👋</h2>
+                            <p class="text-xs text-slate-500 mt-1">Sai Teja Reddy (217R1A05A2) • CMR Technical Campus, Kandlakoya</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.app.navigateTo('live-tracking', 'CB-101')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-location-dot"></i> View on Live Map
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Exact Requested Morning Dashboard Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Your Bus</span>
+                            <span id="studentMorningYourBus" class="text-xl font-extrabold text-slate-900">CB-101</span>
+                        </div>
+                        <div class="p-2 sm:col-span-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Route</span>
+                            <span id="studentMorningYourRoute" class="text-sm font-bold text-slate-800 block truncate">Kukatpally → CMR Technical Campus</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Bus Status</span>
+                            <span id="studentMorningBusStatus" class="text-sm font-extrabold text-emerald-600">🟢 On Time</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Next Stop</span>
+                            <span id="studentMorningNextStop" class="text-sm font-bold text-slate-800">JNTU</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">ETA</span>
+                            <span id="studentMorningETA" class="text-base font-extrabold text-blue-600">18 minutes</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">College Arrival</span>
+                            <span id="studentMorningCollegeArrival" class="text-base font-extrabold text-emerald-600">9:05 AM</span>
+                            <span class="text-[10px] text-slate-500 block">Class: <b id="studentMorningCollegeStarts">9:20 AM</b></span>
+                        </div>
+                    </div>
+
+                    <!-- Smart Departure Time Calculation Card Requested by User -->
+                    <div class="bg-gradient-to-r from-blue-900 to-slate-900 text-white p-5 rounded-2xl border border-blue-800 shadow-md">
+                        <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                            <span class="font-bold text-sm flex items-center gap-2 text-blue-300">
+                                <i class="fa-solid fa-calculator text-emerald-400"></i> Smart Departure Time Feature
+                            </span>
+                            <span class="text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded">Formula: 9:10 AM – Journey Time – Traffic Buffer</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Route</span>
+                                <span class="font-bold text-slate-100">Kukatpally → CMRTC</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Journey Time</span>
+                                <span class="font-bold text-white text-sm">60 minutes</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Traffic Buffer</span>
+                                <span class="font-bold text-amber-300 text-sm">15 minutes</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Required Arrival</span>
+                                <span class="font-bold text-white text-sm">9:10 AM</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-emerald-400 block uppercase font-bold">Recommended Departure</span>
+                                <span class="font-extrabold text-emerald-400 text-base">7:55 AM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. EVENING DASHBOARD (Shown during evening shift or after 4:00 PM) -->
+                <div id="studentEveningCard" class="hidden glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden space-y-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold mb-2">
+                                <span>🌙 Evening Return Mode</span> • College Departure: 4:00 PM
+                            </div>
+                            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Good Evening 👋</h2>
+                            <p class="text-sm font-bold text-emerald-600 mt-1 flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Return Journey Started
+                            </p>
+                        </div>
+                        <button onclick="window.app.navigateTo('live-tracking', 'CB-101')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot"></i> Live Return Map
+                        </button>
+                    </div>
+
+                    <!-- Exact Requested Evening Dashboard Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Bus</span>
+                            <span id="studentEveBus" class="text-xl font-extrabold text-slate-900">CB-101</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Departure</span>
+                            <span id="studentEveDeparture" class="text-base font-bold text-slate-800">4:00 PM</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Current Location</span>
+                            <span id="studentEveLocation" class="text-sm font-bold text-blue-600">CMR Technical Campus</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Destination</span>
+                            <span id="studentEveDestination" class="text-sm font-bold text-slate-800">Kukatpally</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Estimated Arrival</span>
+                            <span id="studentEveEstimatedArrival" class="text-base font-extrabold text-indigo-600">5:05 PM</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold block">Status</span>
+                            <span id="studentEveStatus" class="text-sm font-extrabold text-emerald-600">🟢 On Route</span>
+                        </div>
+                    </div>
+
+                    <!-- Evening Smart ETA Calculation Box Requested by User -->
+                    <div class="bg-gradient-to-r from-indigo-950 to-slate-900 text-white p-5 rounded-2xl border border-indigo-800 shadow-md">
+                        <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+                            <span class="font-bold text-sm flex items-center gap-2 text-indigo-300">
+                                <i class="fa-solid fa-route text-emerald-400"></i> Evening Smart ETA Calculation
+                            </span>
+                            <span class="text-[10px] bg-indigo-500 text-white font-bold px-2 py-0.5 rounded">Formula: 4:00 PM + Journey Time + Traffic Delay</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">College Departure</span>
+                                <span class="font-bold text-white text-sm">4:00 PM</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Estimated Journey</span>
+                                <span class="font-bold text-white text-sm">60 minutes</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Traffic Delay</span>
+                                <span class="font-bold text-amber-300 text-sm">10 minutes</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-emerald-400 block uppercase font-bold">Estimated Home Arrival</span>
+                                <span class="font-extrabold text-emerald-400 text-base">5:10 PM</span>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-2 italic">
+                            * Clearly labeled as Estimated Arrival Times because actual travel time can vary due to traffic.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Capacity & Live Bus Stop Progress -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-slate-500">Bus Occupancy Monitoring</span>
+                            <span id="studentOccupancyPercent" class="text-xs font-bold text-blue-600">84%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden mb-2">
+                            <div id="studentOccupancyBar" class="h-full bg-blue-600 transition-all duration-500" style="width: 84%"></div>
+                        </div>
+                        <p id="studentOccupancyLabel" class="text-xs text-slate-600">
+                            42 of 50 seats filled (8 seats available)
+                        </p>
+                        <button onclick="window.app.openSeatModal('CB-101')" class="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <i class="fa-solid fa-chair"></i> Open 2x2 Bus Seat Grid →
+                        </button>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-500 block uppercase">Campus Arrival Buffer</span>
+                        <div class="text-2xl font-extrabold text-emerald-600 mt-2">15 min Buffer</div>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                            Bus reaches Kandlakoya campus at <b>9:05 AM</b>, ensuring students reach classroom prior to <b>9:20 AM</b> start.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-500 block uppercase">Geofence Safe Zone</span>
+                        <div class="text-base font-bold text-slate-900 mt-2 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i> Kandlakoya Terminal
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">1,000m radial alert active near ORR Exit 6.</p>
+                    </div>
+                </div>
+
+                <!-- Route Progress Timeline -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-timeline text-blue-600"></i> Kukatpally Route Stop-by-Stop Progress
+                    </h3>
+                    <div id="studentStopTimeline" class="space-y-1"></div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 3: LIVE BUS TRACKING (LEAFLET GIS MAP)
+                 (Shows Bus number, Route number, Driver, Current location, Current speed,
+                  Number of students, Available seats, Occupancy percentage, Next stop,
+                  ETA, Traffic condition, Distance remaining, On Time / Delayed status)
+                 ========================================================================= -->
+            <section id="view-live-tracking" class="app-view hidden space-y-4">
+                <div class="glass-panel p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/30">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Live GPS-Style Bus Tracking</h2>
+                            <p class="text-xs text-slate-500">CMR Technical Campus, Kandlakoya (Near ORR Exit 6) Convergence</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btnStartLiveTracking" onclick="window.transitSimulator.togglePlayPause(); this.innerHTML = window.transitSimulator.isRunning ? '<i class=\"fa-solid fa-pause\"></i> Pause Tracking' : '<i class=\"fa-solid fa-play\"></i> Start Live Tracking';" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-pause"></i> Pause Tracking
+                        </button>
+                        <select id="trackingRouteSelector" class="bg-white text-xs font-bold text-slate-800 rounded-xl py-2 px-3 border border-slate-300 shadow-sm focus:ring-2 focus:ring-blue-500">
+                        </select>
+                        <button onclick="window.transitMap.fitAllFleet()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">
+                            <i class="fa-solid fa-expand"></i> Fit All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leaflet Map Container & Live Telemetry HUD -->
+                <div class="relative w-full h-[560px] rounded-3xl overflow-hidden shadow-lg border border-slate-300">
+                    <div id="liveTransitMap" class="w-full h-full z-10"></div>
+
+                    <!-- Telemetry HUD Card showing ALL requested parameters -->
+                    <div class="absolute bottom-4 left-4 z-20 max-w-lg w-full dark-glass-panel text-white p-5 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-md">
+                        <div id="trackingReviewWarning"></div>
+
+                        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-bus text-blue-400"></i>
+                                <span id="trackingBusNumber" class="font-bold text-base">CB-101</span>
+                                <span id="trackingRouteNumber" class="text-xs text-slate-400">Kukatpally Route</span>
+                            </div>
+                            <span id="trackingStatusBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300">🟢 On Time</span>
+                        </div>
+
+                        <!-- 13 Parameters Requested by User -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 text-xs">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Driver</span>
+                                <span id="trackingDriverName" class="font-semibold text-slate-100 truncate block">K. Srinivas Reddy</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Current Location</span>
+                                <span id="trackingCurrentLocation" class="font-bold text-blue-400 text-sm truncate block">JNTU</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Current Speed</span>
+                                <span id="trackingCurrentSpeed" class="font-bold text-emerald-400 text-sm">42 km/h</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Distance Remaining</span>
+                                <span id="trackingDistanceRemaining" class="font-bold text-white text-sm">11.5 km</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">ETA to Destination</span>
+                                <span id="trackingETA" class="font-bold text-blue-400 text-sm">18 minutes</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Number of Students</span>
+                                <span id="trackingPassengers" class="font-bold text-white text-sm">42 Students</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Available Seats</span>
+                                <span id="trackingAvailableSeats" class="font-bold text-emerald-300 text-sm">8 Seats</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Occupancy Rate</span>
+                                <span id="trackingOccupancyPercent" class="font-bold text-slate-200 text-sm">84%</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Next Stop</span>
+                                <span id="trackingNextStop" class="font-semibold text-slate-200 truncate block">Nizampet X Roads</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase">Traffic Condition</span>
+                                <span id="trackingTrafficCondition" class="font-semibold text-amber-300 text-xs">Moderate</span>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <span class="text-[10px] text-slate-400 block uppercase">Destination</span>
+                                <span class="font-bold text-emerald-400 text-xs">CMR Technical Campus, Kandlakoya</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex gap-2">
+                            <button onclick="window.app.openSeatModal('CB-101')" class="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition">
+                                <i class="fa-solid fa-chair mr-1"></i> Seat Map
+                            </button>
+                            <button onclick="window.transitSimulator.simulateGeofenceArrival()" class="py-1.5 px-3 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs transition">
+                                Test JNTU Arrival Ping
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-slate-100 rounded-xl text-center text-[11px] text-slate-500">
+                    * Note: Route distances, journey times and ETAs are demo estimates and can change according to actual traffic conditions.
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 4: 10 HYDERABAD ROUTES & STOPS
+                 ========================================================================= -->
+            <section id="view-routes-stops" class="app-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">CMRTC Hyderabad Bus Routes</h2>
+                    <p class="text-xs text-slate-500">Destination: CMR Technical Campus, Kandlakoya (V), Medchal Road, Hyderabad – 501401, Telangana</p>
+                </div>
+
+                <div id="routesGridContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 5: BUS DETAILS & TELEMETRY
+                 ========================================================================= -->
+            <section id="view-bus-details" class="app-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">CMRTC Fleet Diagnostics & Telemetry</h2>
+                    <p class="text-xs text-slate-500">Live vehicle diagnostics, driver credentials, and 2x2 seat grid</p>
+                </div>
+
+                <div id="busFleetGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5"></div>
+                <div id="activeBusTelemetryCard"></div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 6: PARENT DASHBOARD
+                 ========================================================================= -->
+            <section id="view-parent-dashboard" class="app-view hidden space-y-6">
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80" alt="Parent" class="w-16 h-16 rounded-2xl object-cover border-2 border-cyan-500 shadow">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-xl font-bold text-slate-900">K. Mohan Reddy</h2>
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-100 text-cyan-800">Verified Parent</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Tracking Student: <b class="text-slate-800">Sai Teja Reddy (217R1A05A2)</b></p>
+                                <p class="text-xs text-slate-600 mt-1">Pickup Stop: <b class="text-slate-900">JNTU</b> • Destination: <b class="text-slate-900">CMR Technical Campus, Kandlakoya</b></p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a id="parentDriverPhone" href="tel:+919440123451" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center gap-2">
+                                <i class="fa-solid fa-phone"></i> Call Driver
+                            </a>
+                            <button onclick="window.app.navigateTo('live-tracking', 'CB-101')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center gap-2">
+                                <i class="fa-solid fa-map"></i> View Bus on Map
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Assigned Bus</span>
+                        <div id="parentBusId" class="text-2xl font-bold text-slate-900 mt-2">CB-101</div>
+                        <p class="text-xs text-slate-500 mt-1">Driver: <b id="parentDriverName" class="text-slate-800">K. Srinivas Reddy</b></p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Journey Status</span>
+                        <div class="mt-2">
+                            <span id="parentJourneyStatus" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">On Time</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Next Stop: <b id="parentNextStop" class="text-slate-800">Nizampet X Roads</b></p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <span class="text-xs font-semibold text-slate-400 uppercase">Campus Target Arrival</span>
+                        <div id="parentArrivalEta" class="text-2xl font-bold text-blue-600 mt-2">18 mins (9:05 AM)</div>
+                        <p class="text-xs text-emerald-600 font-semibold mt-1">Reaches Kandlakoya before 9:20 AM class</p>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Commute &amp; Geofence Logs
+                    </h3>
+                    <div id="parentTravelLogs" class="space-y-2"></div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 7: DRIVER COCKPIT HUD
+                 ========================================================================= -->
+            <section id="view-driver-dashboard" class="app-view hidden space-y-6">
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" alt="Driver" class="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-xl font-bold text-slate-900">K. Srinivas Reddy</h2>
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Fleet Captain</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Assigned: <b id="driverBusBadge" class="text-slate-800">CB-101 • TS-08-UB-4012</b></p>
+                                <p class="text-xs text-slate-600 mt-1">Destination: CMR Technical Campus, Kandlakoya (Near ORR Exit 6)</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.transitSimulator.simulateStudentQRScan()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus"></i> Manual Board (+1)
+                            </button>
+                            <button onclick="window.transitSimulator.triggerEmergencySOS()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow transition flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Driver SOS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-5 rounded-2xl dark-glass-panel text-white">
+                        <span class="text-xs text-slate-400 uppercase font-semibold">Live GPS Speed</span>
+                        <div class="text-3xl font-extrabold text-blue-400 mt-2"><span id="driverSpeedHud">42</span> <span class="text-xs font-normal text-slate-400">km/h</span></div>
+                        <span class="text-[11px] text-emerald-400 block mt-1">Speed Limit: 50 km/h</span>
+                    </div>
+
+                    <div class="p-5 rounded-2xl dark-glass-panel text-white">
+                        <span class="text-xs text-slate-400 uppercase font-semibold">Passenger Count</span>
+                        <div class="text-3xl font-extrabold text-white mt-2" id="driverPassengerHud">42 / 50</div>
+                        <span class="text-[11px] text-amber-400 block mt-1">8 Seats Remaining</span>
+                    </div>
+
+                    <div class="p-5 rounded-2xl dark-glass-panel text-white">
+                        <span class="text-xs text-slate-400 uppercase font-semibold">Next Stop</span>
+                        <div class="text-lg font-bold text-slate-100 truncate mt-2" id="driverNextWaypoint">Nizampet X Roads</div>
+                        <span class="text-[11px] text-blue-300 block mt-1">8 Students Boarding</span>
+                    </div>
+
+                    <div class="p-5 rounded-2xl dark-glass-panel text-white">
+                        <span class="text-xs text-slate-400 uppercase font-semibold">Campus Timings</span>
+                        <div class="text-lg font-bold text-emerald-400 mt-2" id="driverTripStatus">Target: 9:10 AM</div>
+                        <span class="text-[11px] text-slate-400 block mt-1">Evening Return: 4:00 PM</span>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-blue-600"></i> Boarding Checklist &amp; QR Verification Log
+                        </h3>
+                        <span class="text-xs text-slate-400 font-mono">Live Sync</span>
+                    </div>
+                    <div id="driverAttendanceList" class="space-y-2"></div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 8: SMART NOTIFICATIONS
+                 ========================================================================= -->
+            <section id="view-notifications" class="app-view hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">CMRTC Smart Notifications Center</h2>
+                        <p class="text-xs text-slate-500">Autonomous timing triggers, delay warnings, and return notifications</p>
+                    </div>
+                    <button onclick="window.transitSimulator.simulateGeofenceArrival()" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold text-xs rounded-xl border border-blue-200 transition">
+                        <i class="fa-solid fa-plus"></i> Simulate JNTU Halt Alert
+                    </button>
+                </div>
+
+                <div id="notificationsListContainer" class="space-y-3"></div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 9: EMERGENCY & SAFETY CENTER
+                 ========================================================================= -->
+            <section id="view-emergency-safety" class="app-view hidden space-y-6">
+                <div id="safetyStatusBadge" class="p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-center text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-base"></i> ALL SYSTEMS GREEN • CMRTC KANDLAKOYA GEOFENCE SECURE
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-200 text-center">
+                        <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900">Emergency SOS Panic Broadcast</h3>
+                        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
+                            Immediately alerts CMRTC Security Gate 1, Medchal Highway Patrol, and parent contacts.
+                        </p>
+                        <div class="flex justify-center gap-3">
+                            <button onclick="window.transitSimulator.triggerEmergencySOS()" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-500/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-bullhorn"></i> Trigger CB-101 SOS
+                            </button>
+                            <button onclick="window.app.openIncidentModal()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
+                                Report Incident
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                        <h3 class="text-base font-bold text-slate-900 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-route text-amber-500"></i> Route Deviation Watchdog
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-4">
+                            Monitors whether the bus strays from the designated Kukatpally-Kandlakoya route (&gt; 450m).
+                        </p>
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-semibold text-slate-700">Simulate Detour off Bachupally:</span>
+                                <button onclick="window.transitSimulator.toggleRouteDeviation()" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg text-xs transition">
+                                    Toggle Detour
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-phone-volume text-blue-600"></i> CMRTC Transport &amp; Emergency Helpline Contacts
+                    </h3>
+                    <div id="emergencyContactsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 10: DIGITAL BUS PASS
+                 ========================================================================= -->
+            <section id="view-digital-pass" class="app-view hidden space-y-6">
+                <div class="text-center max-w-lg mx-auto">
+                    <h2 class="text-xl font-bold text-slate-900">CMR Technical Campus Digital Pass</h2>
+                    <p class="text-xs text-slate-500 mt-1">Tap card to flip between dynamic QR verification and college timings</p>
+                </div>
+
+                <div id="digitalPassCardContainer"></div>
+
+                <div class="flex justify-center gap-3">
+                    <button onclick="window.print()" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Print / Save Pass
+                    </button>
+                    <button onclick="window.transitSimulator.simulateStudentQRScan()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition flex items-center gap-2">
+                        <i class="fa-solid fa-barcode"></i> Test Boarding Scan
+                    </button>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 11: QR ATTENDANCE SCANNER
+                 ========================================================================= -->
+            <section id="view-qr-attendance" class="app-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">CMRTC QR Attendance Scanner Terminal</h2>
+                    <p class="text-xs text-slate-500">Autonomous passenger verification terminal installed on all 10 CMRTC buses</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-200 text-center">
+                        <div class="relative w-full max-w-xs mx-auto aspect-square bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center p-6 border-2 border-slate-700 shadow-2xl">
+                            <div class="absolute inset-8 border-2 border-blue-400 rounded-xl pointer-events-none animate-pulse"></div>
+                            <div class="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-red-500 shadow-[0_0_10px_#ef4444]"></div>
+                            <div class="text-slate-400 text-xs">
+                                <i class="fa-solid fa-camera text-3xl mb-2 text-slate-500 block"></i>
+                                Scan CMRTC Student Pass QR
+                            </div>
+                        </div>
+
+                        <div class="mt-5">
+                            <button onclick="window.transitSimulator.simulateStudentQRScan()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 mx-auto">
+                                <i class="fa-solid fa-qrcode"></i> Simulate Student Boarding Scan
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-check text-emerald-600"></i> Real-Time CB-101 Boarding Logs
+                        </h3>
+                        <div id="qrRecentBoardings" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 12: TRIP HISTORY
+                 ========================================================================= -->
+            <section id="view-trip-history" class="app-view hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Commute History &amp; Carbon Offsets</h2>
+                    <p class="text-xs text-slate-500">Historical punctuality to CMR Technical Campus, Kandlakoya</p>
+                </div>
+
+                <div id="tripHistoryList" class="space-y-3"></div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 13: FEEDBACK & LOST/FOUND
+                 ========================================================================= -->
+            <section id="view-feedback" class="app-view hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-200">
+                            <h3 class="text-base font-bold text-slate-900 mb-1">Rate CMRTC Transit</h3>
+                            <p class="text-xs text-slate-500 mb-4">Driving safety, route punctuality and AC comfort</p>
+                            
+                            <form onsubmit="window.app.submitFeedback(event)">
+                                <div class="flex items-center gap-2 text-2xl text-amber-400 mb-3 cursor-pointer">
+                                    <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                                </div>
+                                <textarea id="feedbackCommentText" rows="3" placeholder="Share your experience (e.g. Captain Srinivas reaches by 9:05 AM, AC is comfortable)..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none mb-3"></textarea>
+                                <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition">
+                                    Submit Feedback
+                                </button>
+                            </form>
+                        </div>
+
+                        <div id="feedbackListContainer" class="space-y-3"></div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Campus Lost &amp; Found</h3>
+                                <p class="text-xs text-slate-500">Belongings left on college buses</p>
+                            </div>
+                            <button onclick="window.app.openLostFoundModal()" class="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold text-xs rounded-xl border border-blue-200 transition">
+                                + Report Item
+                            </button>
+                        </div>
+
+                        <div id="lostFoundListContainer" class="space-y-2"></div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 14: ADVANCED ADMIN DASHBOARD
+                 ========================================================================= -->
+            <section id="view-admin-dashboard" class="app-view hidden space-y-6">
+                <!-- 12 KPIs -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Total Buses</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1">35 Fleet</div>
+                        <span class="text-[10px] text-slate-500">25 Campus Reserves</span>
+                    </div>
+
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-blue-600 uppercase">Active Buses</span>
+                        <div class="text-xl font-extrabold text-blue-600 mt-1">10 En Route</div>
+                        <span class="text-[10px] text-emerald-600 font-semibold">100% Dispatched</span>
+                    </div>
+
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Total Students</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1">1,850</div>
+                        <span class="text-[10px] text-slate-500">Registered Passes</span>
+                    </div>
+
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Total Routes</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1">10 Routes</div>
+                        <span class="text-[10px] text-slate-500">Across Hyderabad</span>
+                    </div>
+
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-amber-600 uppercase">Delayed Buses</span>
+                        <div class="text-xl font-extrabold text-amber-500 mt-1">2 Buses</div>
+                        <span class="text-[10px] text-amber-700">CB-106 &amp; CB-110</span>
+                    </div>
+
+                    <div class="glass-panel p-3.5 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold text-emerald-600 uppercase">Target 9:10 AM Met</span>
+                        <div class="text-xl font-extrabold text-emerald-600 mt-1">98.4%</div>
+                        <span class="text-[10px] text-emerald-600">Punctuality Score</span>
+                    </div>
+                </div>
+
+                <!-- 5 Chart.js Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200 lg:col-span-2">
+                        <div class="flex flex-wrap items-center justify-between mb-3 gap-2">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900">Planned Journey Durations Across 10 Hyderabad Corridors</h4>
+                                <p class="text-[11px] text-slate-500">🟢 Under 60 min (Short) • 🟡 60–90 min (Medium) • 🟠 90–120 min (Long) • 🔴 Over 120 min (Review)</p>
+                            </div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="adminJourneyTimeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <h4 class="font-bold text-sm text-slate-900 mb-3">Bus Capacity Utilization (%)</h4>
+                        <div class="h-60">
+                            <canvas id="adminUtilizationChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <h4 class="font-bold text-sm text-slate-900 mb-3">Daily Cumulative Commuters Boarded</h4>
+                        <div class="h-60">
+                            <canvas id="adminDailyPassengersChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <h4 class="font-bold text-sm text-slate-900 mb-3">Trip Punctuality &amp; Bottleneck Share</h4>
+                        <div class="h-60">
+                            <canvas id="adminDelayedTripsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-200">
+                        <h4 class="font-bold text-sm text-slate-900 mb-3">Route Popularity / Student Demand by Zone</h4>
+                        <div class="h-60">
+                            <canvas id="adminRoutePopularityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Fleet Table -->
+                <div class="glass-panel rounded-2xl border border-slate-200 overflow-hidden">
+                    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                        <h4 class="font-bold text-sm text-slate-900">CMRTC Hyderabad Active Fleet Table (10 Routes)</h4>
+                        <span class="text-xs text-slate-400">Target Campus Arrival: 9:10 AM | Return Departure: 4:00 PM</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[11px] text-slate-500 uppercase font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="py-3 px-4">Bus ID</th>
+                                    <th class="py-3 px-4">Plate No</th>
+                                    <th class="py-3 px-4">Route &amp; Corridor</th>
+                                    <th class="py-3 px-4">Driver</th>
+                                    <th class="py-3 px-4">Occupancy</th>
+                                    <th class="py-3 px-4">Speed</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminFleetTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- =========================================================================
+                 PAGE 15: AUTHENTICATION / LOGIN PORTAL
+                 ========================================================================= -->
+            <section id="view-auth" class="app-view hidden space-y-6">
+                <div class="max-w-md mx-auto glass-panel p-8 rounded-3xl border border-slate-200 shadow-xl">
+                    <div class="text-center mb-6">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold mx-auto mb-2 shadow-lg shadow-blue-500/30">
+                            <i class="fa-solid fa-lock text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-extrabold text-slate-900">CMRTC Role Switcher</h2>
+                        <p class="text-xs text-slate-500 mt-1">Select any persona below for instant 1-click viva presentation demo</p>
+                    </div>
+
+                    <div class="space-y-2 mb-6">
+                        <button onclick="window.app.switchRole('student')" class="w-full p-3 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left flex items-center gap-3 transition">
+                            <span class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm"><i class="fa-solid fa-graduation-cap"></i></span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-900">Student: Sai Teja Reddy</div>
+                                <div class="text-[11px] text-slate-500">Bus CB-101 (Kukatpally) • JNTU Stop</div>
+                            </div>
+                        </button>
+
+                        <button onclick="window.app.switchRole('parent')" class="w-full p-3 rounded-xl bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-left flex items-center gap-3 transition">
+                            <span class="w-9 h-9 rounded-lg bg-cyan-600 text-white flex items-center justify-center font-bold text-sm"><i class="fa-solid fa-people-roof"></i></span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-900">Parent: K. Mohan Reddy</div>
+                                <div class="text-[11px] text-slate-500">Track Sai Teja's Bus • Geofence SMS</div>
+                            </div>
+                        </button>
+
+                        <button onclick="window.app.switchRole('driver')" class="w-full p-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left flex items-center gap-3 transition">
+                            <span class="w-9 h-9 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-sm"><i class="fa-solid fa-id-badge"></i></span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-900">Driver: K. Srinivas Reddy</div>
+                                <div class="text-[11px] text-slate-500">CB-101 Cockpit HUD • Boarding Counter</div>
+                            </div>
+                        </button>
+
+                        <button onclick="window.app.switchRole('admin')" class="w-full p-3 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-left flex items-center gap-3 transition">
+                            <span class="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-sm"><i class="fa-solid fa-chart-line"></i></span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-900">Admin: Dr. A. Raji Reddy (Dean)</div>
+                                <div class="text-[11px] text-slate-500">Kandlakoya Transport Command Center</div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="text-center text-[11px] text-slate-400">
+                        CMR Technical Campus, Kandlakoya, Hyderabad • Presentation Ready
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- =========================================================================
+         FLOATING PRESENTATION DEMO CONTROLLER DOCK
+         ========================================================================= -->
+    <div class="demo-dock" id="presentationDock">
+        <div class="glass-panel p-3 rounded-2xl border border-slate-300 shadow-2xl backdrop-blur-lg">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 text-xs">
+                <span class="font-extrabold text-slate-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders text-blue-600"></i> Presentation Demo Controller
+                </span>
+                <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded">CMRTC VIVA DOCK</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                <button onclick="window.app.switchShift(APP_DATA.activeShift === 'morning' ? 'evening' : 'morning');" class="py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-left truncate transition">
+                    🔄 Toggle Morning/Evening
+                </button>
+                <button onclick="window.transitSimulator.setSpeed(window.transitSimulator.speedMultiplier === 1 ? 5 : 1); this.innerText = window.transitSimulator.speedMultiplier === 1 ? '⚡ 1x Normal Speed' : '⚡ 5x Fast-Forward';" class="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-lg text-left truncate transition">
+                    ⚡ 1x Normal Speed
+                </button>
+                <button onclick="window.transitSimulator.triggerEmergencySOS()" class="py-1.5 px-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-lg text-left truncate transition">
+                    🚨 Toggle SOS Siren
+                </button>
+                <button onclick="window.transitSimulator.toggleRouteDeviation()" class="py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold rounded-lg text-left truncate transition">
+                    🔀 Route Deviation Alert
+                </button>
+                <button onclick="window.transitSimulator.toggleHeavyTraffic()" class="py-1.5 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold rounded-lg text-left truncate transition">
+                    🚦 Heavy Traffic / Jam
+                </button>
+                <button onclick="window.transitSimulator.simulateStudentQRScan()" class="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg text-left truncate transition">
+                    🎟️ Scan QR Pass Beep
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="seatMapModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-200 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-chair text-blue-600"></i>
+                    <h3 class="font-bold text-slate-900 text-sm">Bus CB-101 Seat Grid Allocation</h3>
+                </div>
+                <button onclick="window.app.closeSeatModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="flex justify-between text-[11px] mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-500"></span> Available</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-200 border border-slate-400"></span> Occupied</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-600"></span> Sai Teja (Seat 3A)</span>
+            </div>
+            <div class="flex justify-end mb-3 pr-2">
+                <div class="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-steering-wheel"></i> Driver
+                </div>
+            </div>
+            <div id="seatGridContainer" class="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto p-1"></div>
+            <div class="mt-4 pt-3 border-t border-slate-200 text-center">
+                <button onclick="window.app.closeSeatModal()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl">
+                    Close Seat Map
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="incidentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-200 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Dispatch Incident to CMRTC Desk
+                </h3>
+                <button onclick="window.app.closeIncidentModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="window.app.submitIncidentReport(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Incident Type</label>
+                    <select class="w-full p-2.5 rounded-xl border border-slate-300">
+                        <option>Mechanical Breakdown</option>
+                        <option>Traffic Detour / Roadblock</option>
+                        <option>Medical Assistance Needed</option>
+                        <option>Highway Traffic Jam</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Bus Involved</label>
+                    <input type="text" value="CB-101 (TS-08-UB-4012) - Kukatpally Route" class="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50" readonly>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Description &amp; Location</label>
+                    <textarea rows="3" placeholder="Describe the incident..." class="w-full p-2.5 rounded-xl border border-slate-300"></textarea>
+                </div>
+                <div class="pt-2 flex gap-2">
+                    <button type="button" onclick="window.app.closeIncidentModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl">
+                        Broadcast Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="lostFoundModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-slate-200 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-900 text-sm">Report Lost Belonging</h3>
+                <button onclick="window.app.closeLostFoundModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="window.app.submitLostFound(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Item Name</label>
+                    <input id="lfItemName" type="text" placeholder="e.g. Scientific Calculator, ID Card..." class="w-full p-2.5 rounded-xl border border-slate-300" required>
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Bus &amp; Seat</label>
+                    <input type="text" value="CB-101 - Approximate Seat 14A" class="w-full p-2.5 rounded-xl border border-slate-300">
+                </div>
+                <div class="pt-2 flex gap-2">
+                    <button type="button" onclick="window.app.closeLostFoundModal()" class="flex-1 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl">
+                        Log Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Core Libraries -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
